@@ -1,0 +1,19 @@
+# calisma zamani ciktilari
+catbar-hata.log
+
+# kaynak/ klasoru zaten repoda; zip'e gerek yok
+kaynak.zip
+
+# python
+__pycache__/
+*.pyc
+build/
+dist/
+
+# Kisisel referans fotograflari repoya girmesin.
+# Fotograflari da yuklemek istersen asagidaki satiri sil ve: git add -f referans/
+referans/
+
+# Windows
+Thumbs.db
+desktop.ini

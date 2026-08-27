@@ -1,0 +1,15 @@
+Taskbar Kedileri - sprite kaynaklari
+
+Kurulum:  pip install pillow
+Uretim:   python3 build_sheet.py     -> assets/sprites.png + sprites.json
+          python3 mkdist.py          -> dist/catbar.ps1 (sprite'lar gomulu)
+          python3 mkpreview.py       -> build/preview.html
+
+Dosyalar:
+  art_cat.py     kedi pozlari (ASCII pixel art + programatik bacaklar)
+  art_sleep.py   uyku/esneme/gerinme pozlari
+  art_human.py   insan pozlari ve efektler (kalp, zzz)
+  shapes.py      elips/kontur yardimcilari
+  build_sheet.py paletler, kedi siluet varyantlari, sprite sheet paketleyici
+  scene.js       sahne durum makinesi (catbar_tpl.ps1 ile ayni mantik)
+  catbar_tpl.ps1 PowerShell widget sablonu (__B64__ vb. mkdist ile doldurulur)

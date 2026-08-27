@@ -1,0 +1,138 @@
+<title>Taskbar Kedileri — Önizleme</title>
+<style>
+:root{--bg:#eef1f6;--fg:#1a1d23;--card:#fff;--line:#d6dce6;--acc:#2352c9}
+:root:not([data-theme=light]){}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#14171c;--fg:#e6e9ef;--card:#1c2027;--line:#2c323b;--acc:#6f9bff}}
+:root[data-theme=dark]{--bg:#14171c;--fg:#e6e9ef;--card:#1c2027;--line:#2c323b;--acc:#6f9bff}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 ui-sans-serif,system-ui,'Segoe UI',sans-serif;margin:0;padding:28px 20px 60px}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+p.sub{margin:0 0 24px;opacity:.7;font-size:14px}
+.desk{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;
+ background:linear-gradient(160deg,#3c4a63,#22293a);height:300px}
+.tb{position:absolute;left:0;right:0;bottom:0;height:44px;background:rgba(18,20,26,.92);
+ border-top:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:10px;padding:0 12px}
+.ic{width:22px;height:22px;border-radius:5px;background:rgba(255,255,255,.16)}
+.clock{margin-left:auto;color:#cfd6e2;font-size:12px;font-variant-numeric:tabular-nums}
+#cv{position:absolute;bottom:44px;left:0;image-rendering:pixelated}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:18px 0 0}
+button{font:inherit;font-size:13px;padding:7px 13px;border-radius:7px;border:1px solid var(--line);
+ background:var(--card);color:var(--fg);cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.lab{font-size:12px;opacity:.65;margin-right:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:14px}
+.cell{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px;text-align:center}
+.cell canvas{image-rendering:pixelated;display:block;margin:0 auto 6px}
+.cell span{font-size:11px;opacity:.6;font-family:ui-monospace,monospace}
+h2{font-size:15px;margin:34px 0 6px}
+</style>
+<div class="wrap">
+<h1>Taskbar Kedileri — animasyon önizlemesi</h1>
+<p class="sub">Aşağıdaki şerit sahte bir masaüstü. Gerçekte pencere saydam olacak ve taskbar'ın hemen üzerinde duracak.</p>
+<div class="desk">
+  <div class="tb"><div class="ic"></div><div class="ic"></div><div class="ic"></div><div class="clock">14:32</div></div>
+  <canvas id="cv"></canvas>
+</div>
+<div class="bar">
+  <span class="lab">Sahne:</span>
+  <button data-s="parade">Kortej</button><button data-s="play">Oyuncak</button>
+  <button data-s="pet">Sevme</button><button data-s="nap">Uyku</button>
+  <span class="lab" style="margin-left:14px">Boyut:</span>
+  <button data-z="1">1x (gerçek)</button><button data-z="2">2x</button><button data-z="3" class="on">3x</button><button data-z="4">4x</button>
+  <span class="lab" style="margin-left:14px">Hız:</span>
+  <button data-r="1" class="on">Normal</button><button data-r="2">2x hızlı</button>
+</div>
+<h2>Karakterler</h2>
+<div class="grid" id="chars"></div>
+<h2>Tüm kareler</h2>
+<div class="grid" id="all"></div>
+</div>
+<script>
+const META = __META__;
+const SHEET = new Image();
+__SCENE__
+let ZOOM = 3, RATE = 1;
+const cv = document.getElementById('cv'), cx = cv.getContext('2d');
+let st;
+
+function draw(ctx, name, px, py, flip, z){
+  const f = META.frames[name]; if(!f) return;
+  ctx.save();
+  if(flip){ ctx.translate((px+f.w*z), py); ctx.scale(-1,1); }
+  else ctx.translate(px, py);
+  ctx.drawImage(SHEET, f.x, f.y, f.w, f.h, 0, 0, f.w*z, f.h*z);
+  ctx.restore();
+}
+
+function render(){
+  const z = ZOOM;
+  cv.width = st.screenW*z; cv.height = (CH+12)*z;
+  cv.style.width = (st.screenW*z)+'px'; cv.style.height = ((CH+12)*z)+'px';
+  cx.imageSmoothingEnabled = false;
+  cx.clearRect(0,0,cv.width,cv.height);
+  const base = 12;
+  for(const a of st.actors)
+    draw(cx, frameName(a), (st.groupX + a.x)*z, (base + a.y)*z, a.flip, z);
+  for(const f of st.fx){
+    const n = f.kind==='zzz' ? ('fx_zzz_'+Math.max(1,Math.min(3,3-Math.floor((30-f.life)/10)))) : f.kind;
+    draw(cx, n, (st.groupX + f.x)*z, (base + f.y - 14)*z, false, z);
+  }
+}
+
+function loop(){ for(let i=0;i<RATE;i++) step(st); render(); }
+
+SHEET.onload = ()=>{
+  const deskW = document.querySelector('.desk').clientWidth;
+  st = makeState(Math.floor(deskW/ZOOM));
+  setInterval(loop, TICK);
+  buildGalleries();
+};
+SHEET.src = 'data:image/png;base64,__B64__';
+
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-s]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); applyScene(st, b.dataset.s);
+});
+document.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-z]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); ZOOM=+b.dataset.z;
+  st.screenW = Math.floor(document.querySelector('.desk').clientWidth/ZOOM);
+  st.groupX = Math.min(st.groupX, st.screenW-STAGE_W-8);
+});
+document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); RATE=+b.dataset.r;
+});
+
+function miniLoop(el, frames, hold){
+  const c = el.getContext('2d'); let i=0, h=0;
+  setInterval(()=>{ h++; if(h>=hold){h=0;i=(i+1)%frames.length;}
+    c.clearRect(0,0,c.canvas.width,c.canvas.height);
+    c.imageSmoothingEnabled=false; draw(c, frames[i], 0,0,false,3); }, TICK);
+}
+function buildGalleries(){
+  const chars = [
+    ['tarcin','Tarçın — turuncu-beyaz',['tarcin_walk_1','tarcin_walk_2','tarcin_walk_3','tarcin_walk_4'],2],
+    ['maya','Maya — kabarık krem',['maya_walk_1','maya_walk_2','maya_walk_3','maya_walk_4'],2],
+    ['zilli','Zilli — gri British',['zilli_walk_1','zilli_walk_2','zilli_walk_3','zilli_walk_4'],2],
+    ['human','İnsan',['human_walk_1','human_walk_2','human_walk_3','human_walk_4'],3],
+  ];
+  const g = document.getElementById('chars');
+  for(const [id,label,frames,hold] of chars){
+    const d=document.createElement('div'); d.className='cell';
+    const c=document.createElement('canvas'); c.width=META.cell_w*3; c.height=META.cell_h*3;
+    d.appendChild(c); const s=document.createElement('span'); s.textContent=label; d.appendChild(s);
+    g.appendChild(d); miniLoop(c, frames, hold);
+  }
+  const all=document.getElementById('all');
+  for(const n of Object.keys(META.frames).sort()){
+    const d=document.createElement('div'); d.className='cell';
+    const c=document.createElement('canvas'); c.width=META.cell_w*3; c.height=META.cell_h*3;
+    const ctx=c.getContext('2d'); ctx.imageSmoothingEnabled=false; draw(ctx,n,0,0,false,3);
+    d.appendChild(c); const s=document.createElement('span'); s.textContent=n; d.appendChild(s);
+    all.appendChild(d);
+  }
+}
+</script>
