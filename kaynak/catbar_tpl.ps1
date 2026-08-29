@@ -76,7 +76,7 @@ $script:S = @{
   dir = 1
   screenW = [int]([Math]::Floor($wa.Width / $Scale))
   actors = @(
-    @{ name='human';  x=150.0; tx=150.0; anim='hwalk'; nextAnim='hwalk'; fi=0; fh=0; flip=$false; nextFlip=$false; y=0 }
+    @{ name='dogis';  x=150.0; tx=150.0; anim='hwalk'; nextAnim='hwalk'; fi=0; fh=0; flip=$false; nextFlip=$false; y=0 }
     @{ name='tarcin'; x=108.0; tx=108.0; anim='walk';  nextAnim='walk';  fi=0; fh=0; flip=$false; nextFlip=$false; y=0 }
     @{ name='maya';   x= 68.0; tx= 68.0; anim='walk';  nextAnim='walk';  fi=0; fh=0; flip=$false; nextFlip=$false; y=0 }
     @{ name='zilli';  x= 28.0; tx= 28.0; anim='walk';  nextAnim='walk';  fi=0; fh=0; flip=$false; nextFlip=$false; y=0 }
@@ -86,12 +86,12 @@ $script:S = @{
 }
 
 function Get-AnimSet($a) {
-  if ($a.name -eq 'human') { return $HANIM[$a.anim] } else { return $ANIM[$a.anim] }
+  if ($a.name -eq 'dogis') { return $HANIM[$a.anim] } else { return $ANIM[$a.anim] }
 }
 function Get-FrameName($a) {
   $set = Get-AnimSet $a
   $f = $set.f[$a.fi % $set.f.Count]
-  if ($a.name -eq 'human') { return $f } else { return "$($a.name)_$f" }
+  if ($a.name -eq 'dogis') { return $f } else { return "$($a.name)_$f" }
 }
 
 function Set-Scene($name) {
@@ -123,7 +123,7 @@ function Step-World {
       if ([Math]::Abs($d) -gt 1.5) {
         $a.x = $a.x + ([Math]::Sign($d) * 2)
         $a.flip = ($d -lt 0)
-        $a.anim = if ($a.name -eq 'human') { 'hwalk' } else { 'walk' }
+        $a.anim = if ($a.name -eq 'dogis') { 'hwalk' } else { 'walk' }
         $moving = $true
       } else {
         $a.x = $a.tx; $a.anim = $a.nextAnim; $a.flip = $a.nextFlip
@@ -253,7 +253,7 @@ $form.Add_MouseDown({
   $st = $script:S
   $sx = $e.X / $Scale - $st.groupX
   foreach ($a in $st.actors) {
-    if ($a.name -eq 'human') { continue }
+    if ($a.name -eq 'dogis') { continue }
     if ($sx -ge $a.x -and $sx -le ($a.x + $CELL_W)) {
       $a.anim = 'jump'; $a.fi = 0; $a.fh = 0
       $st.poke[$a.name] = 26

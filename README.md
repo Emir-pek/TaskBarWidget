@@ -1,7 +1,7 @@
 # Taskbar Kedileri 🐈
 
 Windows görev çubuğunun hemen üzerinde, arka planı olmayan küçük bir pixel art
-animasyonu. Tarçın, Maya ve Zilli bir insanla oynuyor, uyuyor, geziniyor.
+animasyonu. Tarçın, Maya ve Zilli, Dogis'le birlikte oynuyor, uyuyor, geziniyor.
 
 Sıfır bağımlılık: Windows'ta hazır gelen PowerShell + WinForms dışında hiçbir şey
 gerekmiyor. Python, Node, .NET SDK kurmana gerek yok.
@@ -37,9 +37,9 @@ ve karakterleri inceleyebilirsin.
 
 Dört sahne rastgele sırayla, 15–25 saniyede bir değişir:
 
-- **Kortej** — insan yürür, kediler peşinden sıra sıra takip eder, grup ekran boyunca gezinir
-- **Oyuncak** — insan tüylü çubuğu sallar, bir kedi zıplayıp yakalamaya çalışır
-- **Sevme** — insan çömelir, bir kediyi sever, kalpler yükselir
+- **Kortej** — Dogis yürür, kediler peşinden sıra sıra takip eder, grup ekran boyunca gezinir
+- **Oyuncak** — Dogis tüylü çubuğu sallar, bir kedi zıplayıp yakalamaya çalışır
+- **Sevme** — Dogis çömelir, bir kediyi sever, kalpler yükselir
 - **Uyku** — kediler uzanıp uyur, biri ara ara esneyip gerinir, z'ler yükselir
 
 Roller her sahnede karışır, yani hep aynı kedi zıplamaz.
@@ -103,7 +103,7 @@ python3 mkpreview.py      # build/preview.html
 |---|---|
 | `art_cat.py` | Kedi pozları — ASCII pixel art, bacaklar programatik üretiliyor |
 | `art_sleep.py` | Uyku / esneme / gerinme pozları |
-| `art_human.py` | İnsan pozları ve efektler (kalp, zzz, kıvılcım) |
+| `art_human.py` | Dogis'in (insan) pozları ve efektler (kalp, zzz, kıvılcım) — sprite adları `human_*` olarak kalıyor |
 | `shapes.py` | Elips / kontur yardımcıları |
 | `build_sheet.py` | Paletler, kedi siluet varyantları, sprite sheet paketleyici |
 | `scene.js` | Sahne durum makinesi — `catbar_tpl.ps1` ile aynı mantık |

@@ -47,7 +47,7 @@ function makeState(screenW) {
     scene: "parade", t: 0, dur: 200, phase: "run",
     groupX: Math.floor(screenW / 2 - STAGE_W / 2), dir: 1, screenW,
     actors: [
-      { name: "human", x: 150, tx: 150, anim: "hwalk", fi: 0, fh: 0, flip: false, y: 0 },
+      { name: "dogis", x: 150, tx: 150, anim: "hwalk", fi: 0, fh: 0, flip: false, y: 0 },
       { name: "tarcin", x: 108, tx: 108, anim: "walk", fi: 0, fh: 0, flip: false, y: 0 },
       { name: "maya",  x: 68,  tx: 68,  anim: "walk", fi: 0, fh: 0, flip: false, y: 0 },
       { name: "zilli",  x: 28,  tx: 28,  anim: "walk", fi: 0, fh: 0, flip: false, y: 0 },
@@ -72,9 +72,9 @@ function applyScene(st, name) {
 }
 
 function frameName(a) {
-  const set = a.name === "human" ? HANIM[a.anim] : ANIM[a.anim];
+  const set = a.name === "dogis" ? HANIM[a.anim] : ANIM[a.anim];
   const f = set.f[a.fi % set.f.length];
-  return a.name === "human" ? f : a.name + "_" + f;
+  return a.name === "dogis" ? f : a.name + "_" + f;
 }
 
 function step(st) {
@@ -88,7 +88,7 @@ function step(st) {
       const d = a.tx - a.x;
       if (Math.abs(d) > 1.5) {
         a.x += Math.sign(d) * 2; a.flip = d < 0;
-        a.anim = a.name === "human" ? "hwalk" : "walk";
+        a.anim = a.name === "dogis" ? "hwalk" : "walk";
         moving = true;
       } else {
         a.x = a.tx;
@@ -113,7 +113,7 @@ function step(st) {
 
   // --- kare ilerlet ---
   for (const a of st.actors) {
-    const set = a.name === "human" ? HANIM[a.anim] : ANIM[a.anim];
+    const set = a.name === "dogis" ? HANIM[a.anim] : ANIM[a.anim];
     a.fh++;
     if (a.fh >= set.hold) { a.fh = 0; a.fi = (a.fi + 1) % set.f.length; }
     // ziplama yuksekligi
