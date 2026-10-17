@@ -1,0 +1,19 @@
+# Depoda her sey LF tutulur; calisma agacina platforma gore acilir.
+# Bu dosya olmadan Windows ile Mac arasinda gidip gelirken butun dosyalar
+# "degismis" gorunuyor (sadece satir sonu farki).
+* text=auto eol=lf
+
+# Windows'un calistirdigi dosyalar CRLF olmak ZORUNDA
+*.bat  text eol=crlf
+*.vbs  text eol=crlf
+*.ps1  text eol=crlf
+
+# Mac/Linux kabuk betigi LF olmali
+*.command text eol=lf
+*.sh      text eol=lf
+
+# ikili dosyalar
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary

@@ -4,6 +4,9 @@ catbar-hata.log
 # kaynak/ klasoru zaten repoda; zip'e gerek yok
 kaynak.zip
 
+# node / electron
+node_modules/
+
 # python
 __pycache__/
 *.pyc
@@ -17,3 +20,6 @@ referans/
 # Windows
 Thumbs.db
 desktop.ini
+
+# yanlislikla olusmus bos dosya
+CATKATKI-NOTU.txt

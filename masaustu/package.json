@@ -1,0 +1,10 @@
+{
+  "name": "taskbar-kedileri",
+  "version": "1.0.0",
+  "description": "Gorev cubugunun / Dock'un uzerinde yasayan pixel art kediler",
+  "main": "main.js",
+  "scripts": { "start": "electron ." },
+  "author": "Emir-pek",
+  "license": "MIT",
+  "devDependencies": { "electron": "^33.0.0" }
+}

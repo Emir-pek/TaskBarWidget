@@ -1,0 +1,13 @@
+// Renderer ile ana surec arasindaki dar kopru.
+// contextIsolation acik; renderer'a Node verilmiyor.
+const { contextBridge, ipcRenderer } = require('electron');
+
+contextBridge.exposeInMainWorld('kedi', {
+  setIgnore: (v) => ipcRenderer.send('kedi:set-ignore', !!v),
+  menu: () => ipcRenderer.send('kedi:menu'),
+  ready: () => ipcRenderer.send('kedi:ready'),
+  on: (channel, fn) => {
+    const ok = ['scale', 'paused', 'scene', 'bounds'];
+    if (ok.includes(channel)) ipcRenderer.on('kedi:' + channel, (_e, ...a) => fn(...a));
+  },
+});
