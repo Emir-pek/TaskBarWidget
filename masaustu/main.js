@@ -52,9 +52,12 @@ function createWindow() {
     },
   });
 
-  // Tam ekran uygulamalarin ve tum masaustlerinin uzerinde kal
-  win.setAlwaysOnTop(true, 'screen-saver');
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  // Her Space'te gorun, AMA tam ekran uygulamalarin ustune cikma.
+  // 'screen-saver' seviyesi + visibleOnFullScreen:true kediler tam ekran
+  // videonun uzerinde duruyordu; 'floating' normal pencerelerin ustunde
+  // kalmaya yetiyor ve tam ekrana girilince macOS pencereyi gizliyor.
+  win.setAlwaysOnTop(true, 'floating');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
 
   // Varsayilan: tiklamalar alttaki pencereye gecer. forward:true sayesinde
   // renderer yine de mousemove alir; imlec dolu bir pikselin uzerine

@@ -130,8 +130,11 @@ Teknik notlar (Electron):
 - **Konumlandırma** `screen.getPrimaryDisplay().workArea` ile — bu alan Dock'u ve
   menü çubuğunu zaten dışarıda bırakıyor. `display-metrics-changed` olayında
   yeniden hizalanıyor, yani Dock'u gizlersen veya monitör eklersen düzeliyor.
-- `setAlwaysOnTop('screen-saver')` + `setVisibleOnAllWorkspaces` olmadan macOS'ta
-  kediler tam ekran uygulamaların ve diğer Space'lerin altında kalıyor.
+- **Tam ekran davranışı:** `setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false })`
+  ile kediler her Space'te görünür ama tam ekran bir uygulamaya (video, oyun, sunum)
+  geçilince macOS onları gizler, çıkınca geri gelirler. Pencere seviyesi `'floating'`:
+  normal pencerelerin üstünde kalmaya yeter. Daha agresif olan `'screen-saver'` +
+  `visibleOnFullScreen: true` ikilisi kedileri tam ekran videonun üzerine çıkarıyordu.
 - Retina'da netlik için canvas `devicePixelRatio` ile ölçekleniyor,
   `imageSmoothingEnabled = false` kalıyor.
 
