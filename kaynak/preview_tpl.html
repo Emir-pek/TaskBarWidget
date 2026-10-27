@@ -10,7 +10,7 @@ body{background:var(--bg);color:var(--fg);font:15px/1.55 ui-sans-serif,system-ui
 h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
 p.sub{margin:0 0 24px;opacity:.7;font-size:14px}
 .desk{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;
- background:linear-gradient(160deg,#3c4a63,#22293a);height:300px}
+ background:linear-gradient(160deg,#3c4a63,#22293a);height:330px}
 .tb{position:absolute;left:0;right:0;bottom:0;height:44px;background:rgba(18,20,26,.92);
  border-top:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:10px;padding:0 12px}
 .ic{width:22px;height:22px;border-radius:5px;background:rgba(255,255,255,.16)}
@@ -30,7 +30,7 @@ h2{font-size:15px;margin:34px 0 6px}
 </style>
 <div class="wrap">
 <h1>Taskbar Kedileri — animasyon önizlemesi</h1>
-<p class="sub">Aşağıdaki şerit sahte bir masaüstü. Gerçekte pencere saydam olacak ve taskbar'ın hemen üzerinde duracak.</p>
+<p class="sub">Aşağıdaki şerit sahte bir masaüstü. Gerçekte pencere saydam olur, taskbar'ın hemen üzerinde ve açık pencerelerin arkasında durur. Kedilere ve Dogis'e tıklayabilirsin (Dogis 2–3 sevmeden sonra bıkar).</p>
 <div class="desk">
   <div class="tb"><div class="ic"></div><div class="ic"></div><div class="ic"></div><div class="clock">14:32</div></div>
   <canvas id="cv"></canvas>
@@ -66,25 +66,47 @@ function draw(ctx, name, px, py, flip, z){
   ctx.restore();
 }
 
+const CW = META.cell_w, CH = META.cell_h, STAGE_H = HEADROOM + CH;
 function render(){
   const z = ZOOM;
-  cv.width = st.screenW*z; cv.height = (CH+12)*z;
-  cv.style.width = (st.screenW*z)+'px'; cv.style.height = ((CH+12)*z)+'px';
+  cv.width = st.screenW*z; cv.height = STAGE_H*z;
+  cv.style.width = (st.screenW*z)+'px'; cv.style.height = (STAGE_H*z)+'px';
   cx.imageSmoothingEnabled = false;
   cx.clearRect(0,0,cv.width,cv.height);
-  const base = 12;
-  for(const a of st.actors)
-    draw(cx, frameName(a), (st.groupX + a.x)*z, (base + a.y)*z, a.flip, z);
-  for(const f of st.fx){
-    const n = f.kind==='zzz' ? ('fx_zzz_'+Math.max(1,Math.min(3,3-Math.floor((30-f.life)/10)))) : f.kind;
-    draw(cx, n, (st.groupX + f.x)*z, (base + f.y - 14)*z, false, z);
-  }
+  for(const d of st.draw) draw(cx, d.k, d.x*z, d.y*z, d.f, z);
 }
+
+// tiklama: sprite sheet'in saydamlik maskesi
+let HIT = null;
+function buildHit(){
+  const c = document.createElement('canvas'); c.width = SHEET.width; c.height = SHEET.height;
+  const g = c.getContext('2d'); g.drawImage(SHEET,0,0);
+  HIT = g.getImageData(0,0,c.width,c.height).data;
+}
+function opaque(k, lx, ly){
+  const f = META.frames[k]; if(!f) return false;
+  return HIT[((f.y+ly)*SHEET.width + f.x+lx)*4+3] > 0;
+}
+cv.addEventListener('click', e=>{
+  const r = cv.getBoundingClientRect();
+  const sx = Math.floor((e.clientX-r.left)/ZOOM), sy = Math.floor((e.clientY-r.top)/ZOOM);
+  clickAt(st, sx, sy, CW, CH, opaque);
+});
+cv.addEventListener('mousemove', e=>{
+  const r = cv.getBoundingClientRect();
+  const sx = Math.floor((e.clientX-r.left)/ZOOM), sy = Math.floor((e.clientY-r.top)/ZOOM);
+  let on = false;
+  for(const d of st.draw){ if(!d.id) continue; const lx=sx-d.x, ly=sy-d.y;
+    if(lx>=0&&ly>=0&&lx<CW&&ly<CH&&opaque(d.k, d.f?CW-1-lx:lx, ly)){on=true;break;} }
+  cv.style.cursor = on ? 'pointer' : 'default';
+});
 
 function loop(){ for(let i=0;i<RATE;i++) step(st); render(); }
 
 SHEET.onload = ()=>{
   const deskW = document.querySelector('.desk').clientWidth;
+  buildHit();
+  seedRng(Date.now() % 2147483646);
   st = makeState(Math.floor(deskW/ZOOM));
   setInterval(loop, TICK);
   buildGalleries();
@@ -93,13 +115,12 @@ SHEET.src = 'data:image/png;base64,__B64__';
 
 document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('[data-s]').forEach(x=>x.classList.remove('on'));
-  b.classList.add('on'); applyScene(st, b.dataset.s);
+  b.classList.add('on'); applyScene(st, b.dataset.s); st.dur = 100000;
 });
 document.querySelectorAll('[data-z]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('[data-z]').forEach(x=>x.classList.remove('on'));
   b.classList.add('on'); ZOOM=+b.dataset.z;
-  st.screenW = Math.floor(document.querySelector('.desk').clientWidth/ZOOM);
-  st.groupX = Math.min(st.groupX, st.screenW-STAGE_W-8);
+  setScreen(st, Math.floor(document.querySelector('.desk').clientWidth/ZOOM));
 });
 document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('[data-r]').forEach(x=>x.classList.remove('on'));
@@ -117,7 +138,11 @@ function buildGalleries(){
     ['tarcin','Tarçın — turuncu-beyaz',['tarcin_walk_1','tarcin_walk_2','tarcin_walk_3','tarcin_walk_4'],2],
     ['maya','Maya — kabarık krem',['maya_walk_1','maya_walk_2','maya_walk_3','maya_walk_4'],2],
     ['zilli','Zilli — gri British',['zilli_walk_1','zilli_walk_2','zilli_walk_3','zilli_walk_4'],2],
-    ['dogis','Dogis — insan',['human_walk_1','human_walk_2','human_walk_3','human_walk_4'],3],
+    ['dogis','Dogis — insan',['dogis_walk_1','dogis_walk_2','dogis_walk_3','dogis_walk_4'],3],
+    ['dogis2','Dogis — sevilince / bıkınca',['dogis_pet_1','dogis_pet_2','dogis_pet_1','dogis_pet_2','dogis_angry_1','dogis_angry_2','dogis_angry_1','dogis_angry_2'],5],
+    ['sun','Güneş',['sun_1','sun_2','sun_3','sun_4'],2],
+    ['zurafa','Zürafa (Dogis çizdi)',['giraffe_idle_1','giraffe_idle_2','giraffe_lean','giraffe_sniff_1','giraffe_sniff_2','giraffe_sniff_1'],6],
+    ['cicek','Çiçek (Dogis çizdi)',['flower_1','flower_2','flower_1','flower_3'],8],
   ];
   const g = document.getElementById('chars');
   for(const [id,label,frames,hold] of chars){

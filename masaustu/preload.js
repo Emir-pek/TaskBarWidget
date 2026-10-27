@@ -7,7 +7,7 @@ contextBridge.exposeInMainWorld('kedi', {
   menu: () => ipcRenderer.send('kedi:menu'),
   ready: () => ipcRenderer.send('kedi:ready'),
   on: (channel, fn) => {
-    const ok = ['scale', 'paused', 'scene', 'bounds'];
+    const ok = ['scale', 'paused', 'scene', 'bounds', 'cursor'];
     if (ok.includes(channel)) ipcRenderer.on('kedi:' + channel, (_e, ...a) => fn(...a));
   },
 });

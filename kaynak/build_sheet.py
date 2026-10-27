@@ -2,6 +2,7 @@
 import json, os
 from PIL import Image
 import art_cat, art_human, render
+import art_sun, art_decor, art_dogis_extra
 
 os.makedirs("assets", exist_ok=True)
 
@@ -19,6 +20,14 @@ HUM_PAL = dict(o="#241c1a", h="#332723", H="#584038", s="#e8b489", S="#c48f66",
                k="#1a1210", m="#c4675f", w="#ffffff", y="#8a5a2b", r="#e05a7a")
 FX_PAL = dict(o="#8f1f3a", M="#ff5f7e", w="#ffffff")
 FX_PAL_Z = dict(o="#dfe6ef", M="#dfe6ef", w="#ffffff")
+HUM_PAL.update(art_dogis_extra.HUM_PAL_ADD)          # yanak / kizarma renkleri
+ANGER_PAL = art_dogis_extra.ANGER_PAL
+SUN_PAL = art_sun.SUN_PAL
+DECOR_PAL = art_decor.DECOR_PAL
+
+# Bu aileler KIRPILMADAN hucrenin sol-alt kosesine konur: motor (scene.js)
+# kanvas koordinatlarina gore yerlestirir, kareler arasi kayma olmasin.
+NO_TRIM = ("sun_", "giraffe_", "flower_", "fx_anger", "fx_huff")
 
 # ---------------- sekil degistiriciler ----------------
 def trim(rows):
@@ -110,13 +119,34 @@ for cname, pal in CAT_PAL.items():
     for pose, rows in art_cat.CAT_POSES.items():
         frames["%s_%s" % (cname, pose)] = (variant(cname, pose, rows), pal)
 for pose, rows in art_human.HUMAN_POSES.items():
-    frames["human_" + pose] = (rows, HUM_PAL)
+    frames["dogis_" + pose] = (rows, HUM_PAL)
+for pose, rows in art_dogis_extra.DOGIS_EXTRA_POSES.items():
+    frames["dogis_" + pose] = (rows, HUM_PAL)
+for name, rows in art_dogis_extra.FX_EXTRA_POSES.items():
+    frames[name] = (rows, ANGER_PAL)
+for name, rows in art_sun.SUN_POSES.items():
+    frames[name] = (rows, SUN_PAL)
+for name, rows in art_decor.DECOR_POSES.items():
+    frames[name] = (rows, DECOR_PAL)
 for pose, rows in art_human.FX_POSES.items():
     pal = FX_PAL_Z if pose.startswith("zzz") else FX_PAL
     frames["fx_" + pose] = (rows, pal)
 
-CW = max(max(len(r) for r in rows) for rows, _ in frames.values()) + 2
-CH = max(len(rows) for rows, _ in frames.values()) + 2
+def no_trim(n):
+    return n.startswith(NO_TRIM)
+
+chars = [v for n, v in frames.items() if not no_trim(n)]
+CW = max(max(len(r) for r in rows) for rows, _ in chars) + 2
+CH = max(len(rows) for rows, _ in chars) + 2
+for n, (rows, _) in frames.items():
+    if no_trim(n):
+        assert max(len(r) for r in rows) <= CW and len(rows) <= CH, (n, CW, CH)
+# TransparencyKey (Windows) magentasi hicbir palette olmamali
+for n, (rows, pal) in frames.items():
+    for ch in set("".join(rows)) - {".", " "}:
+        c = pal.get(ch)
+        assert c is not None, (n, ch)
+        assert c.lower() not in ("#ff00ff", "#fe00fe"), (n, ch)
 COLS = 10
 names = sorted(frames)
 ROWS = (len(names) + COLS - 1) // COLS
@@ -125,13 +155,13 @@ sheet = Image.new("RGBA", (CW * COLS, CH * ROWS), (0, 0, 0, 0))
 index = {}
 for i, n in enumerate(names):
     rows, pal = frames[n]
-    im = render.render(trim(rows), pal)
+    nt = no_trim(n)
+    im = render.render(rows if nt else trim(rows), pal)
     cx, cy = (i % COLS) * CW, (i // COLS) * CH
-    ox = cx + (CW - im.width) // 2
-    oy = cy + (CH - im.height)          # alta hizala (ayaklar taskbar cizgisinde)
-    sheet.alpha_composite(im, (ox, oy))
-    index[n] = dict(x=cx, y=cy, w=CW, h=CH, sw=im.width, sh=im.height,
-                    ox=(CW - im.width) // 2, oy=CH - im.height)
+    lx = 0 if nt else (CW - im.width) // 2
+    ly = CH - im.height                 # alta hizala (ayaklar taskbar cizgisinde)
+    sheet.alpha_composite(im, (cx + lx, cy + ly))
+    index[n] = dict(x=cx, y=cy, w=CW, h=CH, sw=im.width, sh=im.height, ox=lx, oy=ly)
 
 sheet.save("assets/sprites.png")
 json.dump(dict(cell_w=CW, cell_h=CH, frames=index), open("assets/sprites.json", "w"), indent=1)

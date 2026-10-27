@@ -12,8 +12,15 @@ for name in sorted(meta['frames']):
     items.append("  '%s' = @(%d,%d)" % (name, f['x'], f['y']))
 frames_ps = "@{\n" + "\n".join(items) + "\n}"
 
-tpl = open('catbar_tpl.ps1').read()
-out = (tpl.replace('__CELLW__', str(meta['cell_w']))
+engine = open('engine.ps1', encoding='utf-8').read()
+cs = open(os.path.join('win', 'DesktopHost.cs'), encoding='ascii').read()
+for src, name in ((engine, 'engine.ps1'), (cs, 'DesktopHost.cs')):
+    assert not any(l.startswith("'@") for l in src.splitlines()), name   # here-string'i bozar
+
+tpl = open('catbar_tpl.ps1', encoding='utf-8').read()
+out = (tpl.replace('__ENGINE__', engine.strip())
+          .replace('__DESKTOPHOST_CS__', cs.strip())
+          .replace('__CELLW__', str(meta['cell_w']))
           .replace('__CELLH__', str(meta['cell_h']))
           .replace('__SHEETW__', str(sheet_w))
           .replace('__FRAMES__', frames_ps)

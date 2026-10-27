@@ -2,7 +2,12 @@
 
 Görev çubuğunun (macOS'ta Dock'un) hemen üzerinde, arka planı olmayan küçük bir
 pixel art animasyonu. Tarçın, Maya ve Zilli, Dogis'le birlikte oynuyor, uyuyor,
-geziniyor.
+ve gökyüzünde süzülen **güneşin peşinden** geziniyor. En sağda Dogis'in kendi
+çizdiği **zürafa ile zambak** duruyor; zürafa ara sıra çiçeği kokluyor.
+
+**Gerçek bir masaüstü widget'ı:** yalnızca masaüstünde görünür. Açtığın her
+pencere (tarayıcı, editör, oyun) kedilerin **önüne** geçer; pencereleri
+küçültünce ya da *Masaüstünü göster* deyince yine oradadırlar.
 
 | Platform | Nasıl | Gereksinim |
 |---|---|---|
@@ -49,6 +54,8 @@ ve karakterleri inceleyebilirsin. Her işletim sisteminde çalışır.
 | İşlem | Nasıl |
 |---|---|
 | Kediyi zıplatmak | Kedinin **üzerine sol tıkla** — zıplar ve kalp çıkar |
+| Dogis'i sevmek | Dogis'e **sol tıkla** — sevinir, kalp çıkar. Ama üst üste **2–3 kez** seversen bıkar: kollarını kavuşturur, yüzü kızarır, "hmph" der. Birkaç saniye sonra geçer |
+| Konum (Windows) | Sağ tık → *Konum* → *Otomatik* (önerilen) / *Masaüstüne yerleştir* / *Pencerelerin altında* |
 | Menü | Windows: kedinin **üzerine sağ tıkla**. macOS/Linux: **menü çubuğundaki kedi ikonu** |
 | Duraklatma | Sağ tık → *Duraklat* |
 | Boyut | Sağ tık → *Boyut 1x / 2x / 3x* (varsayılan 2x) |
@@ -61,14 +68,21 @@ ve karakterleri inceleyebilirsin. Her işletim sisteminde çalışır.
 
 ## Sahneler
 
+Gökyüzünde parlayan bir **güneş** yavaşça süzülür, ekranın kenarlarında geri döner.
+Grup güneşin peşinden gider; güneş çok uzaklaşınca bir kortejle ona yetişirler.
+
 Dört sahne rastgele sırayla, 15–25 saniyede bir değişir:
 
-- **Kortej** — Dogis yürür, kediler peşinden sıra sıra takip eder, grup ekran boyunca gezinir
+- **Kortej** — Dogis önde, kediler sıra sıra arkada, güneşi takip ederek yürürler
 - **Oyuncak** — Dogis tüylü çubuğu sallar, bir kedi zıplayıp yakalamaya çalışır
 - **Sevme** — Dogis çömelir, bir kediyi sever, kalpler yükselir
 - **Uyku** — kediler uzanıp uyur, biri ara ara esneyip gerinir, z'ler yükselir
 
-Roller her sahnede karışır, yani hep aynı kedi zıplamaz.
+Roller her sahnede karışır, yani hep aynı kedi zıplamaz. Dogis sinirliyken grup onu bekler.
+
+En sağdaki **zürafa ve zambak** (Dogis'in çizimleri) yerinden kıpırdamaz ama yaşar:
+zürafa göz kırpar, hafifçe sallanır, 20–40 saniyede bir eğilip çiçeği koklar
+(küçük bir kalp çıkar); çiçek de esintiyle salınır.
 
 ## Açılışta otomatik başlatma
 
@@ -103,8 +117,9 @@ Tek sanat + mantık kaynağı, iki çalışma zamanı:
 ```
 kaynak/                     TEK KAYNAK
   |- art_*.py               pixel art pozlari
-  |- build_sheet.py         -> assets/sprites.png + sprites.json  (73 kare)
-  \- scene.js               sahne durum makinesi
+  |- build_sheet.py         -> assets/sprites.png + sprites.json  (93 kare)
+  |- scene.js               ortak sahne motoru
+  \- engine.ps1             scene.js'in PowerShell portu (test/parity.sh ile esit)
         |
         |-- mkdist.py ------> catbar.ps1        Windows  (PowerShell + WinForms)
         \-- mkelectron.py --> masaustu/ortak/   macOS / Windows / Linux (Electron)
@@ -113,28 +128,33 @@ kaynak/                     TEK KAYNAK
 **Electron sürümü** (`masaustu/`) aynı `scene.js`'i doğrudan çalıştırır:
 
 ```
-main.js       saydam / cercevesiz / her zaman ustte pencere, tepsi menusu,
+main.js       saydam / cercevesiz pencere, macOS masaustu katmani, tepsi menusu,
               workArea'ya gore konumlandirma, tiklama gecirgenligi
 preload.js    contextIsolation acik dar IPC koprusu
-renderer.js   canvas cizimi + alfa tabanli hit-test
+renderer.js   st.draw listesini canvas'a basar, sprite alfa maskesiyle hit-test
 ortak/        mkelectron.py'nin kopyaladigi scene.js ve sprite'lar
 ```
 
-Teknik notlar (Electron):
+Teknik notlar (Electron / macOS):
 
-- **Saydamlık** renk anahtarıyla değil gerçek alfa ile (`transparent: true`).
-  Tıklama geçirgenliği için pencere `setIgnoreMouseEvents(true, {forward:true})`
-  ile açılıyor; `forward` sayesinde renderer yine de `mousemove` alıyor ve imleç
-  dolu bir pikselin üzerine gelince geçirgenliği kapatıyor. Hit-test canvas'ın
-  alfa kanalından okunuyor.
-- **Konumlandırma** `screen.getPrimaryDisplay().workArea` ile — bu alan Dock'u ve
-  menü çubuğunu zaten dışarıda bırakıyor. `display-metrics-changed` olayında
-  yeniden hizalanıyor, yani Dock'u gizlersen veya monitör eklersen düzeliyor.
-- **Tam ekran davranışı:** `setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false })`
-  ile kediler her Space'te görünür ama tam ekran bir uygulamaya (video, oyun, sunum)
-  geçilince macOS onları gizler, çıkınca geri gelirler. Pencere seviyesi `'floating'`:
-  normal pencerelerin üstünde kalmaya yeter. Daha agresif olan `'screen-saver'` +
-  `visibleOnFullScreen: true` ikilisi kedileri tam ekran videonun üzerine çıkarıyordu.
+- **Masaüstü katmanı:** pencere `type: 'panel'` ve
+  `setAlwaysOnTop(true, 'normal', -1)` ile **NSWindow seviyesi -1**'e konur:
+  bütün uygulama pencerelerinin (seviye 0) altında, duvar kağıdı ve Finder
+  ikonlarının üstünde. Yani her pencere kedilerin önüne geçer.
+- **koffi** (isteğe bağlı bağımlılık, derleme gerektirmez) varsa pencereye
+  `Stationary | CanJoinAllSpaces | IgnoresCycle` davranışı da verilir:
+  *Masaüstünü Göster* ve Mission Control'de kediler yerinde kalır, Cmd-` döngüsüne
+  girmez, her Space'te görünür. Yoksa widget yine çalışır, sadece bu üç incelik eksik kalır.
+  Terminalde `[kedi] macOS katman: class=ElectronNSPanel level=-1 behavior=0x151`
+  satırı her şeyin yerinde olduğunu gösterir.
+- **Tıklama:** seviye 0'ın altındaki, odak almayan pencerelere Chromium
+  `mousemove` göndermez. Bu yüzden ana süreç imleci ~30 Hz yoklar, renderer aynı
+  piksel testini yapar; `acceptFirstMouse` ilk tıklamanın yutulmasını önler.
+  Panel tıklanınca uygulamayı öne getirmez — yazdığın yerde odak kalır.
+- `setVisibleOnAllWorkspaces` macOS'ta **çağrılmaz**: panel zaten tüm Space'lere
+  katılır ve bu çağrı Dock ikonunu geri getiriyordu.
+- Tam ekran uygulamalar (video, oyun) seviye -1'in çok üstünde olduğu için kediler
+  onların üzerine hiç çıkmaz.
 - Retina'da netlik için canvas `devicePixelRatio` ile ölçekleniyor,
   `imageSmoothingEnabled = false` kalıyor.
 
@@ -142,33 +162,35 @@ Teknik notlar (Windows / PowerShell):
 
 ```
 Kedileri Baslat.bat          ->  powershell -File catbar.ps1
-catbar.ps1                       tek dosya: sprite sheet base64 olarak icinde gomulu
-  ├─ $FRAMES                     73 karenin sprite sheet'teki hucre koordinatlari
-  ├─ $ANIM / $HANIM              animasyon tablolari (kare listesi + kac tick tutacagi)
-  ├─ $SCENES                     dort sahnenin hedef pozisyonlari ve animasyonlari
-  ├─ Step-World                  sahne durum makinesi, 80 ms'lik tick
-  └─ Form.Add_Paint              NearestNeighbor ile sprite cizimi
+catbar.ps1                       tek dosya, uretilir (kaynak/mkdist.py):
+  ├─ DesktopHost.cs              masaustu penceresi; acilista Add-Type ile bellege derlenir
+  ├─ engine.ps1                  sahne motoru (scene.js'in birebir portu)
+  ├─ $FRAMES + base64 PNG        93 karelik sprite sheet
+  └─ Paint                       $S.draw listesini NearestNeighbor ile basar
 ```
 
-Teknik notlar:
-
-- **Saydamlık** `Form.TransparencyKey` ile renk anahtarlı yapılıyor (magenta,
-  `255,0,255`). Sprite'larda o renk hiç kullanılmıyor ve alfa değerleri yalnızca
-  0 veya 255 — yani yumuşatılmış kenar yok, anahtar renk temiz çalışıyor.
-  Bunun güzel yan etkisi: saydam alanlar tıklamayı altındaki pencereye geçirir.
-- **Konumlandırma** `Screen.PrimaryScreen.WorkingArea` ile yapılıyor, yani görev
-  çubuğu nerede olursa olsun ve DPI ölçeklemesi kaç olursa olsun doğru oturuyor.
-- **Aynalama** için sprite sheet'in yatay çevrilmiş bir kopyası bellekte tutuluyor;
-  kaynak koordinat `SHEET_W - x - CELL_W` ile hesaplanıyor.
-- Form `DoubleBuffered` olarak işaretleniyor (reflection ile, çünkü property
-  `protected`), aksi halde titriyor.
+- **Masaüstü modu (varsayılan):** pencere, masaüstü ikonlarını taşıyan Explorer
+  penceresinin (Windows 11 24H2+'da `Progman`, eskilerde `WorkerW`) **çocuğu**
+  olarak açılır. İkonların üstünde, bütün uygulama pencerelerinin altında durur;
+  *Masaüstünü göster* (Win+D) ile birlikte görünür. Explorer yeniden başlarsa
+  pencere kendini yeniden takar.
+- **Yedek mod (Bottom):** masaüstüne takılamazsa sahipsiz bir araç penceresi
+  olarak z-sırasının en altında tutulur; öne çıkma girişimleri reddedilir.
+  Sağ tık → *Konum* menüsünden elle seçilebilir; `catbar-hata.log` hangi modda
+  çalıştığını yazar (`Masaustu modu: Desktop | ...`).
+- **DPI:** süreç Per-Monitor-V2; %150 ve üstü ölçeklemede pikseller tam sayı
+  çarpanla büyür, bulanıklaşmaz.
+- **Saydamlık** `TransparencyKey` (magenta) ile; sprite'larda o renk yok ve alfa
+  yalnızca 0/255. Tıklama yalnızca karakter piksellerinde yakalanır, gerisi
+  masaüstüne geçer.
+- **Aynalama** için sprite sheet'in yatay çevrilmiş bir kopyası bellekte tutuluyor.
 
 ## Sprite'ları değiştirmek
 
 ```bash
 cd kaynak
 pip install pillow
-python3 build_sheet.py    # assets/sprites.png + sprites.json
+python3 build_sheet.py    # assets/sprites.png + sprites.json  (93 kare)
 python3 mkdist.py         # dist/catbar.ps1     -> Windows surumu
 python3 mkelectron.py     # masaustu/ortak/     -> Electron surumu
 python3 mkpreview.py      # build/preview.html  -> onizleme
@@ -178,9 +200,13 @@ python3 mkpreview.py      # build/preview.html  -> onizleme
 `build/preview.html` dosyasını `onizleme.html` ile değiştir.
 `mkelectron.py` zaten doğru yere yazar.
 
-> **`scene.js`'i değiştirdiysen `mkelectron.py`'yi çalıştırmayı unutma** —
-> Electron sürümü `masaustu/ortak/scene.js` kopyasını okur, `kaynak/scene.js`'i
-> değil. `catbar_tpl.ps1`'deki sahne tablolarını da elle eşitle.
+> **`scene.js`'i değiştirdiysen `engine.ps1`'i de aynı şekilde değiştir** ve
+> eşitlik testini çalıştır, sonra `mkdist.py` + `mkelectron.py`:
+>
+> ```bash
+> node kaynak/test/harness.js     # 4 ekran genisligi x 30000 tick: kare adlari, sinirler, Dogis/zurafa
+> kaynak/test/parity.sh           # JS ve PowerShell motoru ayni tohumla tick tick ayni mi (pwsh gerekir)
+> ```
 
 `kaynak/` içeriği:
 
@@ -188,14 +214,20 @@ python3 mkpreview.py      # build/preview.html  -> onizleme
 |---|---|
 | `art_cat.py` | Kedi pozları — ASCII pixel art, bacaklar programatik üretiliyor |
 | `art_sleep.py` | Uyku / esneme / gerinme pozları |
-| `art_human.py` | Dogis'in (insan) pozları ve efektler (kalp, zzz, kıvılcım) — sprite adları `human_*` olarak kalıyor |
+| `art_human.py` | Dogis'in temel pozları ve efektler (kalp, zzz, kıvılcım) — sheet'te `dogis_*` |
+| `art_dogis_extra.py` | Dogis'in sevilme (`pet_*`) ve bıkma (`angry_*`, kollar kavuşturulmuş) pozları, öfke işareti, buhar |
+| `art_sun.py` | 4 karelik parlayan güneş (33×33) |
+| `art_decor.py` | Dogis'in zürafa ve zambak çizimlerinden pixel art (bekleme, göz kırpma, koklama) |
 | `shapes.py` | Elips / kontur yardımcıları |
 | `build_sheet.py` | Paletler, kedi siluet varyantları, sprite sheet paketleyici |
-| `scene.js` | Sahne durum makinesi — `catbar_tpl.ps1` ile aynı mantık |
-| `catbar_tpl.ps1` | PowerShell şablonu; `mkdist.py` içine sprite'ları gömer |
+| `scene.js` | **Ortak sahne motoru** — güneş, takip, sahneler, Dogis'in ruh hali, dekor; çizim listesi `st.draw` üretir |
+| `engine.ps1` | `scene.js`'in birebir PowerShell portu |
+| `win/DesktopHost.cs` | Windows masaüstü penceresi (C# 5, açılışta derlenir) |
+| `catbar_tpl.ps1` | PowerShell şablonu; `mkdist.py` motoru, C#'ı ve sprite'ları gömer |
+| `test/` | `harness.js` (motor sağlık testi), `parity.sh` (JS ↔ PowerShell eşitliği) |
 
-> `scene.js` ile `catbar_tpl.ps1` aynı sahne mantığını taşır. Birini
-> değiştirdiğinde diğerini de güncelle, yoksa önizleme widget'la uyuşmaz.
+> Tohumlu rastgele sayı üreteci (Park-Miller) sayesinde iki motor aynı tohumla
+> aynı kareyi üretir; `parity.sh` 4 senaryo × 6000 tick'i satır satır karşılaştırır.
 
 Karakter ayrımı palet + poza duyarlı siluet ile yapılıyor: Maya'ya genişletme
 (dilate) ve sırtında tüy dikenleri ekleniyor, Zilli'ye yalnızca oturma
