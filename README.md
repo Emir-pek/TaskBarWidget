@@ -97,7 +97,7 @@ zürafa göz kırpar, hafifçe sallanır, 20–40 saniyede bir eğilip çiçeği
 - Widget hiç açılmıyorsa klasörde **`catbar-hata.log`** dosyasına bak; hata orada yazar.
 - Kediler görünmüyor ama görev yöneticisinde `powershell.exe` varsa, muhtemelen
   ekranın solundalar — birkaç saniye bekle, kortej sahnesinde gezinirler.
-- Kapatamıyorsan: Görev Yöneticisi → `Windows PowerShell` işlemini sonlandır.
+- Kapatamıyorsan: Görev Yöneticisi → **Taskbar Kedileri** işlemini sonlandır.
 - Kurumsal bir bilgisayarda PowerShell betikleri tamamen engelliyse `.bat`
   çalışmayabilir; o durumda bilgisayarın yöneticisine sorman gerekir.
 
@@ -119,7 +119,7 @@ kaynak/                     TEK KAYNAK
   |- art_*.py               pixel art pozlari
   |- build_sheet.py         -> assets/sprites.png + sprites.json  (93 kare)
   |- scene.js               ortak sahne motoru
-  \- engine.ps1             scene.js'in PowerShell portu (test/parity.sh ile esit)
+  \- win/Engine.cs          scene.js'in C# portu (test/parity.sh ile tick tick esit)
         |
         |-- mkdist.py ------> catbar.ps1        Windows  (PowerShell + WinForms)
         \-- mkelectron.py --> masaustu/ortak/   macOS / Windows / Linux (Electron)
@@ -131,7 +131,8 @@ kaynak/                     TEK KAYNAK
 main.js       saydam / cercevesiz pencere, macOS masaustu katmani, tepsi menusu,
               workArea'ya gore konumlandirma, tiklama gecirgenligi
 preload.js    contextIsolation acik dar IPC koprusu
-renderer.js   st.draw listesini canvas'a basar, sprite alfa maskesiyle hit-test
+renderer.js   st.draw listesini 3 kucuk katmana (gunes / karakterler / zurafa) basar,
+              sprite alfa maskesiyle hit-test
 ortak/        mkelectron.py'nin kopyaladigi scene.js ve sprite'lar
 ```
 
@@ -155,18 +156,23 @@ Teknik notlar (Electron / macOS):
   katılır ve bu çağrı Dock ikonunu geri getiriyordu.
 - Tam ekran uygulamalar (video, oyun) seviye -1'in çok üstünde olduğu için kediler
   onların üzerine hiç çıkmaz.
-- Retina'da netlik için canvas `devicePixelRatio` ile ölçekleniyor,
-  `imageSmoothingEnabled = false` kalıyor.
+- Çizim sprite çözünürlüğünde yapılır, büyütmeyi compositor `image-rendering:
+  pixelated` ile yapar (Retina'da 16 kat az piksel). Sahne üç küçük katmandır;
+  güneşin süzülmesi ve grubun yürümesi yalnızca CSS `transform` — yeniden çizim yok.
 
-Teknik notlar (Windows / PowerShell):
+Teknik notlar (Windows):
 
 ```
-Kedileri Baslat.bat          ->  powershell -File catbar.ps1
-catbar.ps1                       tek dosya, uretilir (kaynak/mkdist.py):
-  ├─ DesktopHost.cs              masaustu penceresi; acilista Add-Type ile bellege derlenir
-  ├─ engine.ps1                  sahne motoru (scene.js'in birebir portu)
-  ├─ $FRAMES + base64 PNG        93 karelik sprite sheet
-  └─ Paint                       $S.draw listesini NearestNeighbor ile basar
+Kedileri Baslat.bat   ->  powershell -File catbar.ps1   (yalnizca baslatici)
+catbar.ps1                tek dosya, uretilir (kaynak/mkdist.py); icinde C# kaynagi:
+  ├─ KediAssets            93 karelik sprite sheet + kare tablosu
+  ├─ Engine.cs             sahne motoru (scene.js'in birebir portu)
+  ├─ KediWidget.cs         cizici, zamanlayici, tiklama, gorunurluk takibi
+  ├─ DesktopHost.cs        masaustu penceresi
+  └─ KediApp.cs            menu + Main
+        │  ilk acilista bir kez derlenir:
+        ▼
+%LOCALAPPDATA%\TaskbarKedileri\TaskbarKedileri-<ozet>.exe   <- arka planda calisan tek surec
 ```
 
 - **Masaüstü modu (varsayılan):** pencere, masaüstü ikonlarını taşıyan Explorer
@@ -184,6 +190,40 @@ catbar.ps1                       tek dosya, uretilir (kaynak/mkdist.py):
   yalnızca 0/255. Tıklama yalnızca karakter piksellerinde yakalanır, gerisi
   masaüstüne geçer.
 - **Aynalama** için sprite sheet'in yatay çevrilmiş bir kopyası bellekte tutuluyor.
+- Exe herhangi bir sebeple başlatılamazsa (ör. bir güvenlik yazılımı engellerse)
+  aynı widget PowerShell'in içinde çalışır; log'a sebebi yazılır.
+
+## Kaynak kullanımı
+
+Widget arka planda sürekli açık durduğu için olabildiğince az yer kaplayacak
+şekilde yazıldı; görüntü ve davranış birebir aynı kalacak şekilde:
+
+| | Ne yapılıyor |
+|---|---|
+| **Çizilmeyen kare yok** | Her tick yalnızca *değişen* sprite'ların dikdörtgenleri yeniden çizilir (Windows); Electron'da yalnızca değişen katman. Hiçbir şey değişmediyse hiç çizim yapılmaz. |
+| **Görünmüyorsa çalışmıyor** | Kedilerin üstü tamamen örtülüyse (tam ekran oyun/video, büyütülmüş pencere, kilit ekranı) motor ve çizim durur. Windows'ta 320 ms'de bir "görünür oldum mu?" diye bakılır; macOS'ta pencere örtülme bilgisi doğrudan kullanılır. Görünür olunca kaldığı yerden devam eder. |
+| **Senin uygulamaların önce gelir** | Süreç(ler) düşük öncelikte çalışır (Windows: *BelowNormal* + EcoQoS verimlilik modu; macOS: nice 10). Bilgisayar yoğunken kediler bekler, sen beklemezsin. |
+| **Derlenmiş kod** | Windows'ta motor ve çizim C#; tick başına mikrosaniyeler (eski PowerShell motoru ~3–5 ms). |
+| **Tek küçük süreç** | Windows'ta arka planda PowerShell değil, ~140 KB'lık bir exe çalışır; ikinci kez başlatılırsa ikinci kopya kendini kapatır. |
+| **Seyrek uyanma** | İmleç kedilerin şeridinden uzaktayken tıklama kontrolü 30 ms yerine 100 ms'de bir yapılır (macOS'ta da). |
+
+**Ölçüm (Windows 11, 24 çekirdekli dizüstü, aynı oturumda eski ↔ yeni):**
+
+| | Eski (PowerShell motoru) | Yeni |
+|---|---|---|
+| CPU, kediler görünürken | %10,6 – %23 (1 çekirdeğin) | **%1,1 – %1,7** |
+| CPU, üstleri örtülüyken | %9,6 – %26 | **%0,3 – %0,5** |
+| Bellek (çalışma kümesi / özel) | 116 MB / 82 MB | **~42 MB / ~30 MB** |
+| Açılış CPU'su | 4,9 – 11,5 sn | 3,0 – 6,4 sn |
+
+(Aralıklar iki ayrı ölçüm oturumundan; ikincisinde dizüstü güç tasarrufundaydı.
+Ekranda görünen animasyon her iki sürümde birebir aynı.)
+
+macOS / Electron tarafı (Linux'ta yazılım çizimiyle ölçüldü, Mac'te GPU ile daha da
+düşük olur): görünürken toplam CPU ~%9,5 → ~%6, pencere örtülünce motor tamamen durur.
+
+Ölçmek istersen (Windows): komut satırında `set CATBAR_PERF=1` deyip aynı pencereden
+`Kedileri Baslat.bat`'ı çalıştır; `catbar-hata.log`'a 30 sn'de bir CPU / bellek satırı düşer.
 
 ## Sprite'ları değiştirmek
 
@@ -200,12 +240,12 @@ python3 mkpreview.py      # build/preview.html  -> onizleme
 `build/preview.html` dosyasını `onizleme.html` ile değiştir.
 `mkelectron.py` zaten doğru yere yazar.
 
-> **`scene.js`'i değiştirdiysen `engine.ps1`'i de aynı şekilde değiştir** ve
+> **`scene.js`'i değiştirdiysen `win/Engine.cs`'i de aynı şekilde değiştir** ve
 > eşitlik testini çalıştır, sonra `mkdist.py` + `mkelectron.py`:
 >
 > ```bash
 > node kaynak/test/harness.js     # 4 ekran genisligi x 30000 tick: kare adlari, sinirler, Dogis/zurafa
-> kaynak/test/parity.sh           # JS ve PowerShell motoru ayni tohumla tick tick ayni mi (pwsh gerekir)
+> kaynak/test/parity.sh           # JS ve C# motoru ayni tohumla tick tick ayni mi (mono gerekir)
 > ```
 
 `kaynak/` içeriği:
@@ -221,13 +261,15 @@ python3 mkpreview.py      # build/preview.html  -> onizleme
 | `shapes.py` | Elips / kontur yardımcıları |
 | `build_sheet.py` | Paletler, kedi siluet varyantları, sprite sheet paketleyici |
 | `scene.js` | **Ortak sahne motoru** — güneş, takip, sahneler, Dogis'in ruh hali, dekor; çizim listesi `st.draw` üretir |
-| `engine.ps1` | `scene.js`'in birebir PowerShell portu |
-| `win/DesktopHost.cs` | Windows masaüstü penceresi (C# 5, açılışta derlenir) |
-| `catbar_tpl.ps1` | PowerShell şablonu; `mkdist.py` motoru, C#'ı ve sprite'ları gömer |
-| `test/` | `harness.js` (motor sağlık testi), `parity.sh` (JS ↔ PowerShell eşitliği) |
+| `win/Engine.cs` | `scene.js`'in birebir C# portu |
+| `win/KediWidget.cs` | Windows çizici: yalnızca değişen alanlar, görünmezken durma, verimlilik modu |
+| `win/DesktopHost.cs` | Windows masaüstü penceresi |
+| `win/KediApp.cs` | Windows widget'ının `Main`'i ve sağ tık menüsü |
+| `catbar_tpl.ps1` | Başlatıcı şablonu; `mkdist.py` C# kaynağını ve sprite'ları içine gömer |
+| `test/` | `harness.js` (motor sağlık testi), `parity.sh` (JS ↔ C# eşitliği) |
 
 > Tohumlu rastgele sayı üreteci (Park-Miller) sayesinde iki motor aynı tohumla
-> aynı kareyi üretir; `parity.sh` 4 senaryo × 6000 tick'i satır satır karşılaştırır.
+> aynı kareyi üretir; `parity.sh` 6 senaryo × 20000 tick'i satır satır karşılaştırır.
 
 Karakter ayrımı palet + poza duyarlı siluet ile yapılıyor: Maya'ya genişletme
 (dilate) ve sırtında tüy dikenleri ekleniyor, Zilli'ye yalnızca oturma

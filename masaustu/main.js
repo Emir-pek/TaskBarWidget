@@ -6,6 +6,7 @@
 const { app, BrowserWindow, screen, Tray, Menu, ipcMain, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // ===== macOS: gercek masaustu widget katmani ==========================
 const IS_MAC = process.platform === 'darwin';
@@ -71,11 +72,13 @@ function applyMacDesktopLayer() {
 // Seviye <= 0 iken Chromium, key olmayan pencereye mousemove gondermiyor
 // (RenderWidgetHostViewCocoa: level > NSNormalWindowLevel sarti). Bu yuzden
 // imleci ana surecte yokluyoruz; renderer ayni piksel testini yapiyor.
+// Imlec pencereden uzaktayken 10 Hz, ustundeyken 30 Hz yoklanir (gereksiz uyanma yok).
 let cursorTimer = null;
 function startCursorPoll() {
   if (!IS_MAC || cursorTimer) return;
   let inside = false, lx = -1, ly = -1;
-  cursorTimer = setInterval(() => {
+  const poll = () => {
+    cursorTimer = null;
     if (!win || win.isDestroyed()) return;
     const p = screen.getCursorScreenPoint();
     const b = win.getBounds();
@@ -88,7 +91,12 @@ function startCursorPoll() {
       win.webContents.send('kedi:cursor', null);   // pencereden cikti -> tekrar gecirgen
     }
     inside = now;
-  }, 33);
+    cursorTimer = setTimeout(poll, now ? 33 : 100);
+  };
+  poll();
+}
+function stopCursorPoll() {
+  if (cursorTimer) { clearTimeout(cursorTimer); cursorTimer = null; }
 }
 
 const META = JSON.parse(fs.readFileSync(path.join(__dirname, 'ortak', 'sprites.json'), 'utf8'));
@@ -135,7 +143,10 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: false,
+      // true: pencere gorunmez/ortulu oldugunda Page Visibility 'hidden' olur ve
+      // renderer motoru tamamen durdurur (false iken Electron hep 'visible' der).
+      backgroundThrottling: true,
+      spellcheck: false,
     },
   });
 
@@ -159,10 +170,23 @@ function createWindow() {
   win.setIgnoreMouseEvents(true, { forward: true });
 
   win.loadFile(path.join(__dirname, 'index.html'));
-  win.once('ready-to-show', () => { win.showInactive(); applyMacDesktopLayer(); });
+  win.once('ready-to-show', () => {
+    win.showInactive(); applyMacDesktopLayer();
+    setTimeout(lowerPriority, 1500);          // GPU / renderer surecleri bu arada acilmis olur
+  });
   if (IS_MAC) win.on('show', applyMacDesktopLayer);
   startCursorPoll();
 }
+
+// --- kullanicinin uygulamalari once gelsin: butun sureclerimiz dusuk oncelikte ---
+function lowerPriority() {
+  const lvl = os.constants.priority.PRIORITY_BELOW_NORMAL;
+  for (const m of app.getAppMetrics()) {
+    try { os.setPriority(m.pid, lvl); } catch (_) { /* izin yoksa onemli degil */ }
+  }
+}
+app.on('child-process-gone', () => setTimeout(lowerPriority, 1500));   // yeniden acilan surec
+app.on('render-process-gone', () => setTimeout(lowerPriority, 1500));
 
 // --- tepsi / menu cubugu menusu -------------------------------------
 function buildMenu() {
@@ -202,6 +226,8 @@ ipcMain.on('kedi:set-ignore', (_e, v) => {
 });
 ipcMain.on('kedi:menu', () => { if (tray) tray.popUpContextMenu(buildMenu()); });
 ipcMain.on('kedi:ready', () => applyBounds());
+// Renderer gorunmez olunca (pencere ortuldu / ekran kilitli) imlec yoklamasi da durur.
+ipcMain.on('kedi:visible', (_e, v) => { if (v) startCursorPoll(); else stopCursorPoll(); });
 
 // --- yasam dongusu ---------------------------------------------------
 app.whenReady().then(() => {

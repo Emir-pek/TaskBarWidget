@@ -27,6 +27,7 @@
 //  so pass-through works even where native hit testing would not.
 // =====================================================================
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -288,6 +289,28 @@ namespace TaskbarKedileri
         public static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
         [DllImport("gdi32.dll")]
         public static extern int GetDeviceCaps(IntPtr hdc, int index);
+
+        // ---- DIB tampon (GDI+ ayni bellege cizer, ekrana BitBlt ile hizli kopyalanir)
+        [StructLayout(LayoutKind.Sequential)]
+        public struct BITMAPINFOHEADER
+        {
+            public int biSize; public int biWidth; public int biHeight; public short biPlanes; public short biBitCount;
+            public int biCompression; public int biSizeImage; public int biXPelsPerMeter; public int biYPelsPerMeter;
+            public int biClrUsed; public int biClrImportant;
+        }
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateDIBSection(IntPtr hdc, ref BITMAPINFOHEADER bmi, uint usage, out IntPtr bits, IntPtr section, uint offset);
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+        [DllImport("gdi32.dll")]
+        public static extern IntPtr SelectObject(IntPtr hdc, IntPtr obj);
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteDC(IntPtr hdc);
+        [DllImport("gdi32.dll")]
+        public static extern bool DeleteObject(IntPtr obj);
+        [DllImport("gdi32.dll")]
+        public static extern bool BitBlt(IntPtr dst, int x, int y, int w, int h, IntPtr src, int sx, int sy, uint rop);
+        public const uint SRCCOPY = 0x00CC0020;
 
         [DllImport("dwmapi.dll")]
         public static extern int DwmGetWindowAttribute(IntPtr hwnd, int attr, out int value, int size);
@@ -619,6 +642,7 @@ namespace TaskbarKedileri
         private const int ActiveBottom = 2;
         private const int WatchIntervalMs = 250;
         private const int HitIntervalMs = 30;
+        private const int HitIdleIntervalMs = 100;
         private const int HostLostGiveUpMs = 15000;
         private const int BottomRetryDesktopMs = 4000;
         private const int MaxLogChars = 16000;
@@ -643,6 +667,12 @@ namespace TaskbarKedileri
         private int _hitSlop = 2;
         private Rectangle _desiredBounds = Rectangle.Empty;   // screen coordinates
         private Bitmap _buffer;
+        private Graphics _bufG;                 // tampona kalici Graphics (her boyamada yeniden olusturulmaz)
+
+        /// <summary>Bir sonraki WM_PAINT'te yalnizca bu dikdortgenler yeniden olusturulur
+        /// (birden cok kucuk alan tek bir boyama mesajinda). null: ClipRectangle'in tamami.</summary>
+        public IList<Rectangle> DirtyHint;
+        private IntPtr _bufDC = IntPtr.Zero, _bufHbm = IntPtr.Zero, _bufOld = IntPtr.Zero;
         private readonly System.Windows.Forms.Timer _watch;
         private readonly System.Windows.Forms.Timer _hit;
         private SinkWindow _sink;
@@ -674,7 +704,10 @@ namespace TaskbarKedileri
             StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None;
             Text = "Taskbar Kedileri";
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint, true);
+            // Kendi tamponumuz var (DIB + BitBlt); WinForms'un ikinci tamponu her WM_PAINT'te
+            // bos yere bellek ayirip kopyaliyordu -> kapali.
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.Opaque, true);
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.DoubleBuffer, false);
 
             _winEventProc = new Native.WinEventDelegate(OnWinEvent);
             _watch = new System.Windows.Forms.Timer();
@@ -1053,26 +1086,132 @@ namespace TaskbarKedileri
             // everything (including the key colour) is painted in OnPaint
         }
 
+        // olcum (KediWidget.Stats -> CATBAR_PERF log satiri)
+        private readonly System.Diagnostics.Stopwatch _paintSw = new System.Diagnostics.Stopwatch();
+        private readonly System.Diagnostics.Stopwatch _hitSw = new System.Diagnostics.Stopwatch();
+        private long _paintCount, _paintPixels, _hitCount;
+        public string PerfStats()
+        {
+            return string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                "wm_paint={0} ({1:F3}ms ort, {2:F0}k px ort) hit={3} ({4:F3}ms ort, {5}ms aralik)",
+                _paintCount, _paintCount > 0 ? _paintSw.Elapsed.TotalMilliseconds / _paintCount : 0,
+                _paintCount > 0 ? _paintPixels / 1000.0 / _paintCount : 0,
+                _hitCount, _hitCount > 0 ? _hitSw.Elapsed.TotalMilliseconds / _hitCount : 0, _hit.Interval);
+        }
+
         protected override void OnPaint(PaintEventArgs e)
+        {
+            _paintSw.Start();
+            try { PaintBuffered(e); }
+            finally { _paintSw.Stop(); _paintCount++; }
+        }
+
+        private void FreeBuffer()
+        {
+            if (_bufG != null) { _bufG.Dispose(); _bufG = null; }
+            if (_buffer != null) { _buffer.Dispose(); _buffer = null; }
+            if (_bufDC != IntPtr.Zero) { Native.SelectObject(_bufDC, _bufOld); Native.DeleteDC(_bufDC); _bufDC = IntPtr.Zero; }
+            if (_bufHbm != IntPtr.Zero) { Native.DeleteObject(_bufHbm); _bufHbm = IntPtr.Zero; }
+        }
+
+        private void AllocBuffer(int w, int h)
+        {
+            FreeBuffer();
+            try
+            {
+                Native.BITMAPINFOHEADER bi = new Native.BITMAPINFOHEADER();
+                bi.biSize = Marshal.SizeOf(typeof(Native.BITMAPINFOHEADER));
+                bi.biWidth = w; bi.biHeight = -h;           // ust-alt sirali
+                bi.biPlanes = 1; bi.biBitCount = 32;        // BI_RGB
+                IntPtr bits;
+                IntPtr hbm = Native.CreateDIBSection(IntPtr.Zero, ref bi, 0, out bits, IntPtr.Zero, 0);
+                IntPtr dc = hbm != IntPtr.Zero ? Native.CreateCompatibleDC(IntPtr.Zero) : IntPtr.Zero;
+                if (hbm != IntPtr.Zero && dc != IntPtr.Zero && bits != IntPtr.Zero)
+                {
+                    _bufHbm = hbm; _bufDC = dc;
+                    _bufOld = Native.SelectObject(dc, hbm);
+                    _buffer = new Bitmap(w, h, w * 4, PixelFormat.Format32bppPArgb, bits);
+                }
+                else
+                {
+                    if (dc != IntPtr.Zero) Native.DeleteDC(dc);
+                    if (hbm != IntPtr.Zero) Native.DeleteObject(hbm);
+                }
+            }
+            catch (Exception) { _bufDC = IntPtr.Zero; _bufHbm = IntPtr.Zero; }
+            if (_buffer == null) _buffer = new Bitmap(w, h, PixelFormat.Format32bppPArgb);   // yedek: yonetilen tampon
+            _bufG = Graphics.FromImage(_buffer);
+        }
+
+        private void PaintBuffered(PaintEventArgs e)
         {
             Size cs = ClientSize;
             if (cs.Width <= 0 || cs.Height <= 0) { base.OnPaint(e); return; }
+            Rectangle full = new Rectangle(0, 0, cs.Width, cs.Height);
+            // Yalnizca gecersiz kilinan alan yeniden olusturulur; tampon arada korunur
+            // (KediWidget yalnizca degisen sprite'lari gecersiz kilar).
+            Rectangle clip = Rectangle.Intersect(e.ClipRectangle, full);
             if (_buffer == null || _buffer.Width != cs.Width || _buffer.Height != cs.Height)
             {
-                if (_buffer != null) _buffer.Dispose();
-                _buffer = new Bitmap(cs.Width, cs.Height, PixelFormat.Format32bppArgb);
+                AllocBuffer(cs.Width, cs.Height);
+                clip = full;
             }
-            Color bg = TransparencyKey.IsEmpty ? BackColor : TransparencyKey;
-            using (Graphics g = Graphics.FromImage(_buffer))
+            if (clip.Width <= 0 || clip.Height <= 0) return;
+
+            List<Rectangle> parts = new List<Rectangle>();
+            IList<Rectangle> hint = DirtyHint;
+            DirtyHint = null;
+            if (hint != null && hint.Count > 0 && clip != full)
             {
-                g.Clear(bg);
-                base.OnPaint(new PaintEventArgs(g, new Rectangle(0, 0, cs.Width, cs.Height)));  // script's Paint handler
+                Rectangle bbox = Rectangle.Empty;
+                foreach (Rectangle h0 in hint)
+                {
+                    Rectangle h = Rectangle.Intersect(h0, clip);
+                    if (h.Width <= 0 || h.Height <= 0) continue;
+                    parts.Add(h);
+                    bbox = bbox.IsEmpty ? h : Rectangle.Union(bbox, h);
+                }
+                // sistem de baska bir yeri gecersiz kildiysa (ipucunun disinda) tamamini boya
+                if (bbox != clip) parts.Clear();
             }
+            if (parts.Count == 0) parts.Add(clip);
+
+            Color bg = TransparencyKey.IsEmpty ? BackColor : TransparencyKey;
+            Graphics g = _bufG;
+            using (SolidBrush b = new SolidBrush(bg))
+            {
+                foreach (Rectangle r in parts)
+                {
+                    _paintPixels += (long)r.Width * r.Height;
+                    g.SetClip(r);
+                    g.CompositingMode = CompositingMode.SourceCopy;
+                    g.FillRectangle(b, r);
+                    g.CompositingMode = CompositingMode.SourceOver;
+                    base.OnPaint(new PaintEventArgs(g, r));   // KediWidget.OnPaint
+                }
+            }
+            g.ResetClip();
+
             Graphics sg = e.Graphics;
-            sg.CompositingMode = CompositingMode.SourceCopy;
-            sg.InterpolationMode = InterpolationMode.NearestNeighbor;
-            sg.PixelOffsetMode = PixelOffsetMode.Half;
-            sg.DrawImage(_buffer, new Rectangle(0, 0, cs.Width, cs.Height), 0, 0, cs.Width, cs.Height, GraphicsUnit.Pixel);
+            if (_bufDC != IntPtr.Zero)
+            {
+                g.Flush(FlushIntention.Sync);
+                IntPtr hdc = sg.GetHdc();
+                try
+                {
+                    foreach (Rectangle r in parts)
+                        Native.BitBlt(hdc, r.X, r.Y, r.Width, r.Height, _bufDC, r.X, r.Y, Native.SRCCOPY);
+                }
+                finally { sg.ReleaseHdc(hdc); }
+            }
+            else
+            {
+                sg.CompositingMode = CompositingMode.SourceCopy;
+                sg.InterpolationMode = InterpolationMode.NearestNeighbor;
+                sg.PixelOffsetMode = PixelOffsetMode.Half;
+                foreach (Rectangle r in parts)
+                    sg.DrawImage(_buffer, r, r.X, r.Y, r.Width, r.Height, GraphicsUnit.Pixel);
+            }
         }
 
         private void UpdateClickThrough(bool force)
@@ -1087,14 +1226,19 @@ namespace TaskbarKedileri
                 if (cms != null && cms.Visible) return;
             }
             bool opaque = false;
+            bool inside = false;
             Native.POINT p;
             Native.RECT r;
             if (Native.GetCursorPos(out p) && Native.GetWindowRect(Handle, out r)
                 && p.X >= r.Left && p.X < r.Right && p.Y >= r.Top && p.Y < r.Bottom)
             {
+                inside = true;
                 Native.ScreenToClient(Handle, ref p);
                 opaque = IsOpaqueAt(p.X, p.Y);
             }
+            // imlec seridin disindayken daha seyrek bak (gereksiz uyanma yok)
+            int want = inside ? HitIntervalMs : HitIdleIntervalMs;
+            if (_hit.Interval != want) _hit.Interval = want;
             SetClickThrough(!opaque, force);
         }
 
@@ -1349,6 +1493,7 @@ namespace TaskbarKedileri
 
         private void OnHitTick(object sender, EventArgs e)
         {
+            _hitSw.Start(); _hitCount++;
             try
             {
                 if (_closing || !IsHandleCreated) return;
@@ -1357,6 +1502,7 @@ namespace TaskbarKedileri
                     EnsureAboveDesktop(false);
             }
             catch (Exception ex) { Log("hit timer: " + ex.Message); }
+            finally { _hitSw.Stop(); }
         }
 
         private void OnWatchTick(object sender, EventArgs e)
@@ -1487,7 +1633,7 @@ namespace TaskbarKedileri
                     UnhookEvents();
                     if (_hookedMenu != null) { _hookedMenu.Closed -= OnMenuClosed; _hookedMenu = null; }
                     if (_sink != null) { _sink.DestroyHandle(); _sink = null; }
-                    if (_buffer != null) { _buffer.Dispose(); _buffer = null; }
+                    FreeBuffer();
                 }
                 catch (Exception) { }
             }

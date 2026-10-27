@@ -2,11 +2,11 @@ Taskbar Kedileri - kaynaklar
 
 Kurulum:  pip install pillow
 Uretim:   python3 build_sheet.py     -> assets/sprites.png + sprites.json (93 kare)
-          python3 mkdist.py          -> dist/catbar.ps1 (motor + C# + sprite'lar gomulu)
+          python3 mkdist.py          -> dist/catbar.ps1 (C# kaynagi + sprite'lar gomulu)
           python3 mkelectron.py      -> ../masaustu/ortak/
           python3 mkpreview.py       -> build/preview.html
 Test:     node test/harness.js       motor saglik testi
-          test/parity.sh             scene.js ile engine.ps1 tick tick ayni mi (pwsh gerekir)
+          test/parity.sh             scene.js ile win/Engine.cs tick tick ayni mi (mono gerekir)
 
 Dosyalar:
   art_cat.py          kedi pozlari (ASCII pixel art + programatik bacaklar)
@@ -18,6 +18,8 @@ Dosyalar:
   shapes.py           elips/kontur yardimcilari
   build_sheet.py      paletler, siluet varyantlari, sprite sheet paketleyici
   scene.js            ORTAK sahne motoru (onizleme + Electron)
-  engine.ps1          scene.js'in birebir PowerShell portu (Windows)
+  win/Engine.cs       scene.js'in birebir C# portu (Windows)
+  win/KediWidget.cs   Windows cizici (degisen alanlar, gorunmezken durma, verimlilik modu)
   win/DesktopHost.cs  Windows masaustu penceresi (Progman/WorkerW cocugu)
-  catbar_tpl.ps1      PowerShell widget sablonu (mkdist doldurur)
+  win/KediApp.cs      Windows widget'inin Main'i + menu
+  catbar_tpl.ps1      baslatici sablonu (mkdist doldurur; C# bir kez exe'ye derlenir)
