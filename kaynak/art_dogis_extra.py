@@ -5,7 +5,7 @@ Tum pozlar `stand` ile ayni tuvalde: 20 genis x 31 satir, ayaklar en alt satirda
 yatay bbox merkezi stand ile ayni (9.5). Yan etkisiz import edilir.
 
 Yeni palet anahtarlari (HUM_PAL_ADD):
-  L  ceket kol isigi (one gelen on kol)     p  pembe yanak (mutlu)
+  L  tisort kol isigi (one gelen on kol)    p  pembe yanak (mutlu)
   q  kizarmis ten (sinirli)                  Q  kizarmis ten golge
   R  koyu kirmizi yanak (sinirli)
 """
@@ -15,7 +15,7 @@ HEAD, LEGS_STAND = _A.HEAD, _A.LEGS_STAND
 W = 20
 
 HUM_PAL_ADD = dict(
-    L="#3a6fe8",   # kol isigi
+    L="#f7f2e6",   # kol isigi (krem)
     p="#f08c8c",   # mutlu yanak
     q="#f0846f",   # kizarik ten
     Q="#c95f50",   # kizarik ten golge
@@ -46,40 +46,40 @@ def _down1(head):
 
 
 #                 67890123
-HEAD_PET_1 = _face(["ssssssss",
+HEAD_PET_1 = _face([None,                # kakul kalir
                     "skksskks",     # kapali mutlu gozler  ^ ^
                     "kssssssk",
                     "ppommopp"])    # yanak + gulumseme (HEAD_SMILE agzi)
-HEAD_PET_2 = _down1(_face(["ssssssss",
+HEAD_PET_2 = _down1(_face([None,
                            "skksskks",
                            "pssssssp",  # yanak kabarir (nabiz)
                            "ppommopp"]))
 
-HEAD_ANGRY_1 = _face(["kkqqqqkk",   # catik kaslar: dis uc yukarda
-                      "qkkqqkkq",   # \ /  ice-asagi egik kizgin gozler
+HEAD_ANGRY_1 = _face([None,         # kakul kaslari ortuyor
+                      "kkqqqqkk",   # \ /  ice-asagi egik kizgin gozler (dis uclar yukarda)
                       "RqqqqqqR",   # koyu kirmizi yanaklar
                       "RRqooqRR",   # surat asma
                       "qqSSSSqq"])
-HEAD_ANGRY_2 = _face(["kkqqqqkk",
-                      "qkkqqkkq",
+HEAD_ANGRY_2 = _face([None,
+                      "kkqqqqkk",
                       "RqqqqqqR",
                       "RqooooqR",   # "hmph" - agiz genisler (puf)
                       "qqSSSSqq"])
 
-# kollar kavusturulmus govde (satir 13-22): ustteki on kol acik mavi (L/j),
+# kollar kavusturulmus govde (satir 13-22): ustteki on kol acik krem (L/j),
 # eli sagdaki ust kolu kavrar; alttaki on kol koyu (J), eli soldan gorunur.
 # Dirsekler yanlara tasar (sol ustte, sag altta) -> bbox 1..18, merkez 9.5.
 ARMS_CROSSED = [
     #01234567890123456789
-    "..ohhoojjjjjjoohho..",   # 13
-    "..ohhojjjttjjjohho..",   # 14
-    "..ohhojjjttjjjohho..",   # 15
+    "...ojoojjjjjjoojo...",   # 13
+    "..ojjojjjjjjjjojjo..",   # 14
+    "..ottottttttttotto..",   # 15 cizgi
     ".ojjjoooooooooojjo..",   # 16
     ".ojjLLLLLLLLLLLsso..",   # 17
-    ".ojjjjjjjjjjjjjsso..",   # 18
+    ".otttttttttttttsso..",   # 18 cizgi
     "..oooooooooooooojjo.",   # 19
     "..ossJJJJJJJJJJJJjo.",   # 20
-    "..ossJJJJJJJJJJJJoo.",   # 21
+    "..ossttttttttttttoo.",   # 21 cizgi
     "...oooooooooooooo...",   # 22
 ]
 

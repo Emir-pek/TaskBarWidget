@@ -16,7 +16,7 @@ CAT_PAL = {
                 p="#d698a0", e="#f5c62e", k="#161a1e", w="#ffffff"),
 }
 HUM_PAL = dict(o="#241c1a", h="#332723", H="#584038", s="#e8b489", S="#c48f66",
-               j="#2352c9", J="#16388f", t="#1b1b22", n="#2b303c", f="#15151a",
+               j="#efe8d8", J="#cdbfa6", t="#2d3b68", B="#4a5fd0", n="#2b303c", f="#15151a",
                k="#1a1210", m="#c4675f", w="#ffffff", y="#8a5a2b", r="#e05a7a")
 FX_PAL = dict(o="#8f1f3a", M="#ff5f7e", w="#ffffff")
 FX_PAL_Z = dict(o="#dfe6ef", M="#dfe6ef", w="#ffffff")

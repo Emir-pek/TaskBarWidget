@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """. saydam | o kontur | h sac | H sac isik | s ten | S ten golge
-   j ceket mavi | J ceket koyu | t siyah ust | n pantolon | f ayakkabi
+   j krem tisort | J krem golge | t lacivert cizgi | B kolye ucu | n pantolon | f ayakkabi
    k goz | m agiz | w parlama | y oyuncak sap | r oyuncak tuy"""
 
 def pad(rows, w=None):
@@ -14,14 +14,14 @@ HEAD = [
     "....ohhhhhhhhhho....",
     "...ohhhhhhhhhhhho...",
     "...ohhHhhhhhhHhho...",
-    "...ohhssssssssHho...",
+    "...ohhhhhhhhhhHho...",   # 5 kakul (duz, kas hizasinda)
     "...ohhskksskkshho...",
     "...ohhssssssssHho...",
     "...ohhsssmmssshho...",
     "...ohhssSSSSsshho...",
     "...ohhhoSSSSohhho...",
     "...ohhhoSSSSohhho...",
-    "...ohhhoSSSSohhho...",
+    "..ohHhooSSSSoohHho..",   # 12 omuz hizasinda disa kivrik uclar (kisa sac)
 ]
 HEAD_BLINK = HEAD[:6] + ["...ohhsooosooshho..."[:20]] + HEAD[7:]
 HEAD_SMILE = HEAD[:8] + ["...ohhssommosshho..."[:20]] + HEAD[9:]
@@ -29,17 +29,17 @@ HEAD_SMILE = HEAD[:8] + ["...ohhssommosshho..."[:20]] + HEAD[9:]
 def torso(arm_l, arm_r, legs, head=None):
     """arm_l/arm_r: 10 satirlik 3 genis kol sutunlari (satir 13-22)"""
     head = head or HEAD
-    body = [
+    body = [            # krem, lacivert cizgili uzun kollu tisort
         "ojjjjjjo",   # 13 omuz
-        "jjjttjjj",   # 14
-        "jjjttjjj",   # 15
-        "jjjttjjj",   # 16
-        "jjjttjjj",   # 17
-        "jjjttjjj",   # 18
-        "jjjttjjj",   # 19
-        "jjttttjj",   # 20
-        "jjttttjj",   # 21
-        "ojttttjo",   # 22
+        "jjjBjjjJ",   # 14 kolyedeki minik mavi kedi ucu
+        "tttttttt",   # 15 cizgi
+        "jjjjjjjJ",   # 16
+        "jjjjjjjJ",   # 17
+        "tttttttt",   # 18 cizgi
+        "jjjjjjjJ",   # 19
+        "jjjjjjjJ",   # 20
+        "tttttttt",   # 21 cizgi
+        "ojjjjjJo",   # 22
     ]
     rows = list(head)
     for i, b in enumerate(body):
@@ -47,12 +47,13 @@ def torso(arm_l, arm_r, legs, head=None):
     rows.extend(legs)
     return pad(rows)
 
-ARM_DOWN = ["ohh", "ohh", "ohh", "ojj", "ojj", "ojo", "ojo", "ojo", "oso", "oso"]
-ARM_DOWN_R = ["hho", "hho", "hho", "jjo", "jjo", "ojo", "ojo", "ojo", "oso", "oso"]
-ARM_SWING_F = ["ohh", "ohh", "ojj", "ojj", "ojo", "ojo", "oso", "...", "...", "..."]
-ARM_SWING_B = ["ohh", "ohh", "ohh", "ojj", "ojj", "ojo", "ojo", "ojo", "ojo", "oso"]
+# kollar: uzun kollu, govdeyle ayni satirlarda lacivert cizgi (index 2, 5)
+ARM_DOWN = [".oj", "ojj", "ott", "ojj", "ojj", "oto", "ojo", "ojo", "oso", "oso"]
+ARM_DOWN_R = ["jo.", "jjo", "tto", "jjo", "jjo", "oto", "ojo", "ojo", "oso", "oso"]
+ARM_SWING_F = [".oj", "ojj", "ott", "ojj", "ojo", "oto", "oso", "...", "...", "..."]
+ARM_SWING_B = [".oj", "ojj", "ott", "ojj", "ojj", "oto", "ojo", "ojo", "ojo", "oso"]
 # kalkik kol (oyuncak tutar)
-ARM_UP    = ["oso", "ojo", "ojo", "ojo", "ohh", "ohh", "ohh", "ohh", "ohh", "ohh"]
+ARM_UP    = ["oso", "ojo", "oto", "ojo", "o..", "...", "...", "...", "...", "..."]
 
 LEGS_STAND = [
     "....onnnoonnno....",
@@ -130,18 +131,18 @@ HUMAN_CROUCH_1 = pad([
     "..ohhhhhhhhhho....",
     "..ohhhhhhhhhhho...",
     "..ohhhhhhhhhhho...",
-    "..ohhsssssssHho...",
+    "..ohhhhhhhhhHho...",
     "..ohhsooosooshho..",
     "..ohhsssssssshoo..",
     "..ohhssmmssshho...",
     "..ohhsSSSSSshho...",
     "..ohhhossssohho...",
-    ".oohhhoSSSSohhoo..",
+    ".ohHhooSSSSoohHo..",
     ".ojjjjjjjjjjjjjo..",
-    ".ojjjjttttjjjjjo..",
-    ".ojjjttttttjjjooo.",
-    ".ojjjttttttjjjosso",
-    ".ojjttttttttjjoo..",
+    ".ojjjjjjjjjjjjJo..",
+    ".ottttttttttttooo.",
+    ".ojjjjjjjjjjjJosso",
+    ".ojjjjjjjjjjjjoo..",
     ".onnnnnnnnnnnno...",
     ".onnnnnnnnnnnno...",
     "onnnnoooonnnnno...",
@@ -159,18 +160,18 @@ HUMAN_CROUCH_2 = pad([
     "..ohhhhhhhhhho....",
     "..ohhhhhhhhhhho...",
     "..ohhhhhhhhhhho...",
-    "..ohhsssssssHho...",
+    "..ohhhhhhhhhHho...",
     "..ohhsooosooshho..",
     "..ohhsssssssshoo..",
     "..ohhsommosshho...",
     "..ohhsSSSSSshho...",
     "..ohhhossssohho...",
-    ".oohhhoSSSSohhoo..",
+    ".ohHhooSSSSoohHo..",
     ".ojjjjjjjjjjjjjo..",
-    ".ojjjjttttjjjjjoooooo",
-    ".ojjjttttttjjjjossssso",
-    ".ojjjttttttjjjjoooooo",
-    ".ojjttttttttjjoo..",
+    ".ojjjjjjjjjjjjJoooooo",
+    ".otttttttttttttossssso",
+    ".ojjjjjjjjjjjjJoooooo",
+    ".ojjjjjjjjjjjjoo..",
     ".onnnnnnnnnnnno...",
     ".onnnnnnnnnnnno...",
     "onnnnoooonnnnno...",
